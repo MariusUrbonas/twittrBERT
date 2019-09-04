@@ -1,4 +1,7 @@
 from sklearn.metrics import f1_score
+import os
+import torch
+
 
 def save_checkpoint(state, is_best, checkpoint):
     """Saves model and training parameters at checkpoint + 'last.pth.tar'. If is_best==True, also saves
@@ -13,8 +16,6 @@ def save_checkpoint(state, is_best, checkpoint):
         print("Checkpoint Directory does not exist! Making directory {}".format(checkpoint))
         os.mkdir(checkpoint)
     torch.save(state, filepath)
-    if is_best:
-        shutil.copyfile(filepath, os.path.join(checkpoint, 'best.pth.tar'))
 
 class RunningAverage():
     """A simple class that maintains the running average of a quantity
