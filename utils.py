@@ -70,9 +70,9 @@ class Params():
 
 class F1Avarage:
     def __init__(self):
-        self.avg = RunningAverage
+        self.avg = RunningAverage()
 
-    def update_batch(batch_pred, batch_label):
+    def batch_update(self, batch_pred, batch_label):
         for (pred, true) in zip(batch_pred, batch_label):
             self.avg.update(f1_score(pred, true))
 

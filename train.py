@@ -26,12 +26,7 @@ parser.add_argument('--distil', default=False, action='store_true', help="Use Di
 def train(model, dataloader, optimizer, scheduler, params):
     print("Starting training...")
     best_val_f1 = 0.0
-    utils.save_checkpoint({'epoch': epoch + 1,
-                            'state_dict': model_to_save.state_dict(),
-                            'optim_dict': optimizer_to_save.state_dict()},
-                            is_best=True,
-                            checkpoint=params.save_dir)
-    for i in range(params.epoch_num):
+    for epoch in range(params.epoch_num):
         loss_avg = RunningAverage()
         train_data = tqdm(dataloader.data_iterator(_type='train',
                                                    batch_size=params.batch_size,
@@ -50,14 +45,14 @@ def train(model, dataloader, optimizer, scheduler, params):
             optimizer.zero_grad()
             # update the average loss
             loss_avg.update(loss.item())
-            train_data.set_postfix(type='TRAIN',epoch=i,loss='{:05.3f}'.format(loss_avg()))
-
+            train_data.set_postfix(type='TRAIN',epoch=epoch,loss='{:05.3f}'.format(loss_avg()))
+            break
         metrics = validate(model, dataloader, params)
-        print('After {} epochs: F1={}, Loss={}'.format(metrics['f1'], metrics['loss']))
+        print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics['f1'], metrics['loss']))
         if metrics['f1'] > best_val_f1:
             utils.save_checkpoint({'epoch': epoch + 1,
-                                    'state_dict': model_to_save.state_dict(),
-                                    'optim_dict': optimizer_to_save.state_dict()},
+                                    'state_dict': model.state_dict(),
+                                    'optim_dict': optimizer.state_dict()},
                                     is_best=True,
                                     checkpoint=params.save_dir)
 
@@ -66,8 +61,8 @@ def validate(model, dataloader, params):
     model.eval()
     val_data = tqdm(dataloader.data_iterator(_type='val',
                                                batch_size=params.batch_size,
-                                               tokenizer=tokenizer,
-                                               total=(dataloader.val_size // params.batch_size)))
+                                               tokenizer=tokenizer),
+                                               total=(dataloader.val_size // params.batch_size))
     f1 = F1Avarage()
     loss_avg = RunningAverage()
     with torch.no_grad():
@@ -75,10 +70,11 @@ def validate(model, dataloader, params):
             batch_masks = data.gt(0)
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
             predicted = logits.max(2)[1]
-            f1.batch_update(pred=predicted, true=labels)
+            #print(predicted)
+            f1.batch_update(predicted, labels)
             loss_avg.update(loss.item())
-            val_data.set_postfix(type='VAL',epoch=i,loss='{:05.3f}'.format(loss_avg()))
-
+            val_data.set_postfix(type='VAL',loss='{:05.3f}'.format(loss_avg()))
+            break
     metrics = {}
     metrics['loss'] = loss_avg()
     metrics['f1'] = f1()
@@ -116,3 +112,4 @@ if __name__ == '__main__':
     scheduler = WarmupLinearSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps)  # PyTorch scheduler
 
     train(model, dataloader, optimizer, scheduler, params)
+    #print(validate(model, dataloader ,params))
