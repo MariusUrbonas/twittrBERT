@@ -1,3 +1,6 @@
+import numpy as np
+import torch
+
 class DataLoader():
 
     def __init__(self, path_to_train, path_to_test, val_split=0.1, seed=42, device=None):
@@ -35,7 +38,7 @@ class DataLoader():
         return train_list[:split],train_list[split:]
 
 
-    def prepare_data(self, data, order, i, tokenizer):
+    def prepare_data(self, data, order, batch_size, i, tokenizer):
         batch = [data[idx] for idx in order[i*batch_size:(i+1)*batch_size]]
 
         batch_max_item_len = max([len(tokenizer.encode(s[0])) for s in batch])
@@ -86,4 +89,4 @@ class DataLoader():
             random.shuffle(order)
 
         for i in range(1,size//batch_size):
-            yield self.prepare_data(data, order, i, tokenizer)
+            yield self.prepare_data(data, order, batch_size, i, tokenizer)

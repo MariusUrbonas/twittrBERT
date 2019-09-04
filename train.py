@@ -8,6 +8,7 @@ import random
 import argparse
 from data_loader import DataLoader
 from utils import Params, RunningAverage, F1Avarage
+from model import DistilBertForTokenClassification
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--train_dir', default='data/trnTweet.txt', help="Directory containing the train dataset")
@@ -19,26 +20,30 @@ parser.add_argument('--epoch_num', type=int, default=10, help="random seed for i
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before training")
 parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
+parser.add_argument('--distil', default=False, action='store_true', help="Use Distiled Bert Model")
 
 
 def train(model, dataloader, optimizer, scheduler, params):
     print("Starting training...")
     best_val_f1 = 0.0
+    utils.save_checkpoint({'epoch': epoch + 1,
+                            'state_dict': model_to_save.state_dict(),
+                            'optim_dict': optimizer_to_save.state_dict()},
+                            is_best=True,
+                            checkpoint=params.save_dir)
     for i in range(params.epoch_num):
         loss_avg = RunningAverage()
         train_data = tqdm(dataloader.data_iterator(_type='train',
                                                    batch_size=params.batch_size,
-                                                   tokenizer=tokenizer,
-                                                   total=(dataloader.train_size // params.batch_size)))
-        print(dataloader.train_size)
-        print(params.batch_size)
+                                                   tokenizer=tokenizer),
+                                                   total=(dataloader.train_size // params.batch_size))
         for data, labels in train_data:
             batch_masks = data.gt(0)
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
 
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)  # Gradient clipping is not in AdamW anymore (so you can use amp without issue)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), params.max_grad_norm)  # Gradient clipping is not in AdamW anymore (so you can use amp without issue)
 
             optimizer.step()
             scheduler.step()
@@ -80,8 +85,6 @@ def validate(model, dataloader, params):
     return metrics
 
 
-
-
 if __name__ == '__main__':
     args = parser.parse_args()
     params = Params()
@@ -106,7 +109,7 @@ if __name__ == '__main__':
     params.num_warmup_steps = 1000
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
+    model = DistilBertForTokenClassification(2) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
     model.to(device=params.device)
 
     optimizer = AdamW(model.parameters(), lr=params.lr, correct_bias=False)  # To reproduce BertAdam specific behavior set correct_bias=False
