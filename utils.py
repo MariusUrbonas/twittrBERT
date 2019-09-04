@@ -73,7 +73,7 @@ class F1Avarage:
         self.avg = RunningAverage
 
     def update_batch(batch_pred, batch_label):
-        for (pred, true) in zip(batch_pred, batch_label)
+        for (pred, true) in zip(batch_pred, batch_label):
             self.avg.update(f1_score(pred, true))
 
     def __call__(self):

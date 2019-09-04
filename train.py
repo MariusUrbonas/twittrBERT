@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 from pytorch_transformers import *
-import pandas as pd
 from torch.nn import CrossEntropyLoss, MSELoss, BCELoss
 from tqdm import tqdm
 import numpy as np
 import random
 import argparse
+from data_loader import DataLoader
 from utils import Params, RunningAverage, F1Avarage
 
 parser = argparse.ArgumentParser()
@@ -22,6 +22,7 @@ parser.add_argument('--gpu', default=False, action='store_true', help="Whether t
 
 
 def train(model, dataloader, optimizer, scheduler, params):
+    print("Starting training...")
     best_val_f1 = 0.0
     for i in range(params.epoch_num):
         loss_avg = RunningAverage()
@@ -29,6 +30,8 @@ def train(model, dataloader, optimizer, scheduler, params):
                                                    batch_size=params.batch_size,
                                                    tokenizer=tokenizer,
                                                    total=(dataloader.train_size // params.batch_size)))
+        print(dataloader.train_size)
+        print(params.batch_size)
         for data, labels in train_data:
             batch_masks = data.gt(0)
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
@@ -42,15 +45,16 @@ def train(model, dataloader, optimizer, scheduler, params):
             optimizer.zero_grad()
             # update the average loss
             loss_avg.update(loss.item())
-            t.set_postfix(type='TRAIN',epoch=i,loss='{:05.3f}'.format(loss_avg()))
+            train_data.set_postfix(type='TRAIN',epoch=i,loss='{:05.3f}'.format(loss_avg()))
 
         metrics = validate(model, dataloader, params)
+        print('After {} epochs: F1={}, Loss={}'.format(metrics['f1'], metrics['loss']))
         if metrics['f1'] > best_val_f1:
-            utils.save_checkpoint(({'epoch': epoch + 1,
+            utils.save_checkpoint({'epoch': epoch + 1,
                                     'state_dict': model_to_save.state_dict(),
                                     'optim_dict': optimizer_to_save.state_dict()},
                                     is_best=True,
-                                    checkpoint=params.save_dir))
+                                    checkpoint=params.save_dir)
 
 
 def validate(model, dataloader, params):
@@ -68,6 +72,7 @@ def validate(model, dataloader, params):
             predicted = logits.max(2)[1]
             f1.batch_update(pred=predicted, true=labels)
             loss_avg.update(loss.item())
+            val_data.set_postfix(type='VAL',epoch=i,loss='{:05.3f}'.format(loss_avg()))
 
     metrics = {}
     metrics['loss'] = loss_avg()
@@ -79,7 +84,7 @@ def validate(model, dataloader, params):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-
+    params = Params()
     params.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     random.seed(args.seed)
@@ -97,7 +102,7 @@ if __name__ == '__main__':
     # Training
     params.lr = 1e-3
     params.max_grad_norm = 1.0
-    params.num_total_steps = (dataloader.train_size // params.batch_size)*params.epoch_niter
+    params.num_total_steps = (dataloader.train_size // params.batch_size)*params.epoch_num
     params.num_warmup_steps = 1000
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
