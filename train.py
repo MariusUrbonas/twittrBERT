@@ -49,7 +49,7 @@ def train(model, dataloader, optimizer, scheduler, params):
             train_data.set_postfix(type='TRAIN',epoch=epoch,loss='{:05.3f}'.format(loss_avg()))
 
         metrics = validate(model, dataloader, params)
-        print('After {} epochs: F1={}, Loss={}'.format(metrics['f1'], metrics['loss']))
+        print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics['f1'], metrics['loss']))
         if metrics['f1'] > best_val_f1:
             best_val_f1 = metrics['f1']
             save_checkpoint({'epoch': epoch+1,
@@ -63,8 +63,8 @@ def validate(model, dataloader, params):
     model.eval()
     val_data = tqdm(dataloader.data_iterator(_type='val',
                                                batch_size=params.batch_size,
-                                               tokenizer=tokenizer,
-                                               total=(dataloader.val_size // params.batch_size)))
+                                               tokenizer=tokenizer),
+                                               total=(dataloader.val_size // params.batch_size))
     f1 = F1Avarage()
     loss_avg = RunningAverage()
     with torch.no_grad():
@@ -72,10 +72,11 @@ def validate(model, dataloader, params):
             batch_masks = data.gt(0)
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
             predicted = logits.max(2)[1]
-            f1.batch_update(pred=predicted, true=labels)
+            #print(predicted)
+            f1.batch_update(predicted, labels)
             loss_avg.update(loss.item())
-            val_data.set_postfix(type='VAL',epoch=i,loss='{:05.3f}'.format(loss_avg()))
-
+            val_data.set_postfix(type='VAL',loss='{:05.3f}'.format(loss_avg()))
+            break
     metrics = {}
     metrics['loss'] = loss_avg()
     metrics['f1'] = f1()
@@ -113,3 +114,4 @@ if __name__ == '__main__':
     scheduler = WarmupLinearSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps)  # PyTorch scheduler
 
     train(model, dataloader, optimizer, scheduler, params)
+    #print(validate(model, dataloader ,params))
