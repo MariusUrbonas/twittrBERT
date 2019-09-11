@@ -47,7 +47,7 @@ class DataLoader():
 
     def pretokenize(self, tokenizer):
         print("Pretokenizing datasets")
-        for data_type, data in [('train', self.train[:500])]:#, ('val', self.val), ('test', self.test)]:
+        for data_type, data in [('train', self.train),('val', self.val), ('test', self.test)]:
             print(">>> Tokenizing {} dataset".format(data_type))
             num_tweets = len(data)
             longest = 0
