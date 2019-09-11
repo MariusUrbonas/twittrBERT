@@ -1,7 +1,7 @@
 import os
 import torch
 import pickle
-
+import numpy as np
 
 def save_checkpoint(state, epoch, score, checkpoint, is_best, tag='experiment'):
     

@@ -32,7 +32,7 @@ parser.add_argument('--distil', default=False, action='store_true', help="Use Di
 def train(model, dataloader, optimizer, scheduler, params):
     print("Starting training...")
     best_val_f1 = 0.0
-    print(params.save_dir, params.tag)
+    #print(params.save_dir, params.tag)
     stats = Stats(params.save_dir, params.tag)
     for epoch in range(params.epoch_num):
         loss_avg = RunningAverage()
@@ -45,8 +45,10 @@ def train(model, dataloader, optimizer, scheduler, params):
             labels = torch.tensor(labels, dtype=torch.long).to(params.device)
 
             batch_masks = data != 0
-            loss, logits = model(data, attention_mask=batch_masks, labels=labels)
+            output = model(data, attention_mask=batch_masks, labels=labels)
 
+            loss = torch.mean(output[0])
+            print(loss)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), params.max_grad_norm)  # Gradient clipping is not in AdamW anymore (so you can use amp without issue)
@@ -76,7 +78,7 @@ def train(model, dataloader, optimizer, scheduler, params):
 
 def validate(model, dataloader, params):
     model.eval()
-    val_data = tqdm(dataloader.data_iterator_from_presaved(data_type='val',
+    val_data = tqdm(dataloader.data_iterator(data_type='val',
                                                batch_size=params.batch_size),
                                                total=(len(dataloader.val) // params.batch_size))
     metrics = Metrics()
@@ -91,7 +93,7 @@ def validate(model, dataloader, params):
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
             predicted = logits.max(2)[1]
 
-            metrics.update(batch_pred=predicted, batch_true=labels, batch_mask=batch_masks)
+            metrics.update(batch_pred=predicted.cpu().numpy(), batch_true=labels.cpu().numpy(), batch_mask=batch_masks.cpu().numpy())
             loss_avg.update(loss.item())
             val_data.set_postfix(type='VAL',loss='{:05.3f}'.format(loss_avg()))
     metrics.loss = loss_avg()
