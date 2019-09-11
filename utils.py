@@ -32,20 +32,23 @@ class Stats:
 
     def __init__(self, save_dir, tag):
         self.data = {}
+        self.save_dir=save_dir
         name = "stats_{}.pickle".format(tag)
         self.save_path = os.path.join(save_dir, name)
 
-    def update(self, epoch, train_loss):
+    def update(self, metrics,  epoch, train_loss):
         self.data[epoch] = {}
-        self.data[epoch]['f1'] =  metrics.f1
+        self.data[epoch]['f1'] =  metrics.f1()
         self.data[epoch]['val_loss'] = metrics.loss
         self.data[epoch]['train_loss'] = train_loss
-        self.data[epoch]['precision'] = metrics.precision
-        self.data[epoch]['recall'] = metrics.recall
+        self.data[epoch]['precision'] = metrics.precision()
+        self.data[epoch]['recall'] = metrics.recall()
 
     def save(self):
+        if not os.path.exists(self.save_path):
+            os.mkdir(save_dir)
         with open(self.save_path, 'wb') as handle:
-            pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.data, handle, protocol=pickle.HIGHEST_PROTOCOL)
    
 
 class RunningAverage():
@@ -95,23 +98,16 @@ class Metrics:
         self.false_pos += np.sum(batch_pred[mask] & np.logical_not(batch_true[mask]))
         self.false_neg += np.sum(np.logical_not(batch_pred[mask]) & batch_true[mask])
 
-    @property
     def f1(self):
-        if self.precision == 0:
-            self._f1 = 0
-        elif self.recall == 0:
-            self._f1 = 1
+        if self.precision() == 0 and self.recall() == 0:
+            self._f1=0
         else:
             self._f1 = 2*(self.precision*self.recall/(self.precision+ self.recall))
         return self._f1
     
-    @property
     def precision(self):
-        self.precision = self.true_pos/(self.true_pos+self.false_pos)
-        return self._precision
+     	return self.true_pos/(self.true_pos+self.false_pos)
 
-    @property
     def recall(self):
-        slef.recall = true_pos/(true_pos+false_neg)
-        return self._recall
+        return self.true_pos/(self.true_pos+self.false_neg)
 

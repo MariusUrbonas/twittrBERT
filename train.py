@@ -7,7 +7,7 @@ import numpy as np
 import random
 import argparse
 from dataloader import DataLoader
-from utils import Params, RunningAverage, Metrics, Stats, load_checkpoint
+from utils import Params, RunningAverage, Metrics, Stats, save_checkpoint, load_checkpoint
 from models import DistilBertForTokenClassification
 
 parser = argparse.ArgumentParser()
@@ -44,11 +44,10 @@ def train(model, dataloader, optimizer, scheduler, params):
             data = torch.tensor(data, dtype=torch.long).to(params.device)
             labels = torch.tensor(labels, dtype=torch.long).to(params.device)
 
-            batch_masks = data != 0
+            batch_masks = (data != 0)
             output = model(data, attention_mask=batch_masks, labels=labels)
 
             loss = torch.mean(output[0])
-            print(loss)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), params.max_grad_norm)  # Gradient clipping is not in AdamW anymore (so you can use amp without issue)
@@ -61,19 +60,19 @@ def train(model, dataloader, optimizer, scheduler, params):
             train_data.set_postfix(type='TRAIN',epoch=epoch,loss='{:05.3f}'.format(loss_avg()))
 
         metrics = validate(model, dataloader, params)
-        print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics.f1, metrics.loss))
+        print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics.f1(), metrics.loss))
         stats.update(metrics, epoch, loss_avg())
         stats.save()
 
-        if metrics.f1 > best_val_f1:
-            best_val_f1 = metrics.f1
+        if metrics.f1() > best_val_f1:
+            best_val_f1 = metrics.f1()
             save_checkpoint({'epoch': epoch,
                                     'state_dict': model.state_dict(),
                                     'optim_dict': optimizer.state_dict()},
                                     is_best=True,
                                     tag=params.tag,
                                     epoch=epoch,
-                                    score=metrics.f1,
+                                    score=metrics.f1(),
                                     checkpoint=params.save_dir)
 
 def validate(model, dataloader, params):
@@ -91,10 +90,10 @@ def validate(model, dataloader, params):
             batch_masks = data != 0
 
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
+            print(">>>>> logits shape: ", logits.size())
             predicted = logits.max(2)[1]
-
             metrics.update(batch_pred=predicted.cpu().numpy(), batch_true=labels.cpu().numpy(), batch_mask=batch_masks.cpu().numpy())
-            loss_avg.update(loss.item())
+            loss_avg.update(torch.mean(loss).item())
             val_data.set_postfix(type='VAL',loss='{:05.3f}'.format(loss_avg()))
     metrics.loss = loss_avg()
     return metrics
