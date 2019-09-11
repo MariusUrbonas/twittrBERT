@@ -63,7 +63,15 @@ def train(model, dataloader, optimizer, scheduler, params):
         print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics.f1(), metrics.loss))
         stats.update(metrics, epoch, loss_avg())
         stats.save()
-
+        if epoch % params.save_freq == 0:
+            save_checkpoint({'epoch': epoch,
+                                    'state_dict': model.state_dict(),
+                                    'optim_dict': optimizer.state_dict()},
+                                    is_best=False,
+                                    tag=params.tag,
+                                    epoch=epoch,
+                                    score=metrics.f1(),
+                                    checkpoint=params.save_dir)
         if metrics.f1() > best_val_f1:
             best_val_f1 = metrics.f1()
             save_checkpoint({'epoch': epoch,
@@ -90,7 +98,7 @@ def validate(model, dataloader, params):
             batch_masks = data != 0
 
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
-            print(">>>>> logits shape: ", logits.size())
+
             predicted = logits.max(2)[1]
             metrics.update(batch_pred=predicted.cpu().numpy(), batch_true=labels.cpu().numpy(), batch_mask=batch_masks.cpu().numpy())
             loss_avg.update(torch.mean(loss).item())

@@ -102,7 +102,7 @@ class Metrics:
         if self.precision() == 0 and self.recall() == 0:
             self._f1=0
         else:
-            self._f1 = 2*(self.precision*self.recall/(self.precision+ self.recall))
+            self._f1 = 2*(self.precision()*self.recall()/(self.precision()+self.recall()))
         return self._f1
     
     def precision(self):
