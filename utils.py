@@ -17,6 +17,14 @@ def save_checkpoint(state, is_best, checkpoint):
         os.mkdir(checkpoint)
     torch.save(state, filepath)
 
+def load_checkpoint(checkpoint_path):
+    filepath = os.path.join(checkpoint_path, 'last.pth.tar')
+    print("<<< Loading checkpoint from ", filepath)
+    checkpoint = torch.load(filepath)
+    return checkpoint
+
+
+
 class RunningAverage():
     """A simple class that maintains the running average of a quantity
     Example:
@@ -73,9 +81,11 @@ class F1Avarage:
     def __init__(self):
         self.avg = RunningAverage()
 
-    def batch_update(self, batch_pred, batch_label):
-        for (pred, true) in zip(batch_pred, batch_label):
-            self.avg.update(f1_score(pred, true))
+    def batch_update(self, batch_pred, batch_label, batch_mask):
+        for i, (pred, true) in enumerate(zip(batch_pred, batch_label)):
+            mask = batch_mask[0].cpu().numpy()
+            #print(ma
+            self.avg.update(f1_score(pred.cpu()[mask].numpy(), true.cpu()[mask].numpy()))
 
     def __call__(self):
         return self.avg()

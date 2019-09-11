@@ -3,7 +3,7 @@ import torch
 
 class DataLoader():
 
-    def __init__(self, path_to_train, path_to_test, val_split=0.1, seed=42, device=None):
+    def __init__(self, path_to_train, path_to_test, val_split=0.1, seed=42, device=None, load_emb=False):
         self.val_split = val_split
         self.train, self.val = self.load(path_to_train, True)
         self.test = self.load(path_to_test, False)
@@ -35,7 +35,8 @@ class DataLoader():
     def split_validation(self, train_list):
         size = len(train_list)
         split = int(size*(1-self.val_split))
-        return train_list[:split],train_list[split:]
+        #return train_list[:split],train_list[split:]
+        return train_list, train_list[split:]
 
 
     def prepare_data(self, data, order, batch_size, i, tokenizer):
@@ -61,6 +62,28 @@ class DataLoader():
         batch_data = batch_data.to(device=self.device)
         batch_labels = batch_labels.to(device=self.device)
         return batch_data, batch_labels
+
+    def data_iterator_from_presaved(self, _type='train',batch_size=16 ,tokenizer=None, shuffle=False):
+        if _type == 'train':
+            data = self.train
+            n_chunks = 61
+            n_start = 1
+        elif _type == 'val':
+            data = self.train
+            n_start = 61
+            n_chunks = 67
+        elif _type == 'test':
+            data = self.test
+        else:
+            raise ValueError(_type)
+        size = len(data)
+        order = list(range(size))
+        chunk_size = 1024
+        for i in range(n_start, n_chunks):
+            data_chunk = np.load('train_data_batch_{}.npy'.format(i*chunk_size))
+            #print()
+            for j in range(data_chunk.shape[0]//batch_size):
+                yield torch.tensor(data_chunk[j:j+batch_size]).cuda(), self.prepare_data(data, order, chunk_size, i, tokenizer)[0][j:j+batch_size], self.prepare_data(data, order, chunk_size, i, tokenizer)[1][j:j+batch_size]
 
     def data_iterator(self, _type='train', batch_size=128 ,tokenizer=None, shuffle=False):
         """Returns a generator that yields batches data with tags.

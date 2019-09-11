@@ -30,34 +30,43 @@ class DistilBertForTokenClassification(torch.nn.Module):
         outputs = model(input_ids, labels=labels)
         loss, scores = outputs[:2]
     """
-    def __init__(self, num_labels, hidden_size=768 ,hidden_dropout_prob=0.1):
+    def __init__(self, num_labels,top_rnn=False, hidden_size=768 ,hidden_dropout_prob=0.1):
         super(DistilBertForTokenClassification, self).__init__()
         self.num_labels = num_labels
-
-        self.bert = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        self.top_rnn=top_rnn
+        if self.top_rnn:
+            self.rnn = nn.LSTM(bidirectional=True, num_layers=2, input_size=768, hidden_size=768//2, batch_first=True)
+        #self.bert = DistilBertModel.from_pretrained('distilbert-base-uncased')
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.classifier = nn.Linear(hidden_size, num_labels)
 
 
 
     def forward(self, input_ids, labels=None, attention_mask=None):
-        outputs = self.bert(input_ids, attention_mask=attention_mask)
-        sequence_output = outputs[0]
-
-        sequence_output = self.dropout(sequence_output)
+        #with torch.no_grad():
+        #outputs = self.bert(input_ids, attention_mask=attention_mask
+        if self.top_rnn:
+            input_ids = self.rnn(input_ids)
+        sequence_output = self.dropout(input_ids)
         logits = self.classifier(sequence_output)
 
-        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
+        outputs = (logits,)# + outputs[2:]  # add hidden states and attention if they are here
         #print(logits)
         #print(logits.view(-1, self.num_labels))
         if labels is not None:
             loss_fct = CrossEntropyLoss()
             # Only keep active parts of the loss
             if attention_mask is not None:
+                #print(attention_mask.size())
+                #print(logits.size())
                 active_loss = attention_mask.view(-1) == 1
+                #print(active_loss)
                 active_logits = logits.view(-1, self.num_labels)[active_loss]
+                #print(active_logits)
                 active_labels = labels.view(-1)[active_loss]
+                #print(active_labels)
                 loss = loss_fct(active_logits, active_labels)
+                #print(loss)
             else:
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             outputs = (loss,) + outputs

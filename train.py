@@ -7,7 +7,7 @@ import numpy as np
 import random
 import argparse
 from data_loader import DataLoader
-from utils import Params, RunningAverage, F1Avarage, save_checkpoint
+from utils import Params, RunningAverage, F1Avarage, save_checkpoint, load_checkpoint
 from model import DistilBertForTokenClassification
 
 parser = argparse.ArgumentParser()
@@ -19,7 +19,9 @@ parser.add_argument('--seed', type=int, default=42, help="random seed for initia
 parser.add_argument('--epoch_num', type=int, default=10, help="random seed for initialization")
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before training")
+parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
+parser.add_argument('--top_rnn', default=False, action='store_true', help="Use Rnn on  top")
 parser.add_argument('--distil', default=False, action='store_true', help="Use Distiled Bert Model")
 
 
@@ -29,12 +31,16 @@ def train(model, dataloader, optimizer, scheduler, params):
 
     for epoch in range(params.epoch_num):
         loss_avg = RunningAverage()
-        train_data = tqdm(dataloader.data_iterator(_type='train',
-                                                   batch_size=params.batch_size,
+        train_data = tqdm(dataloader.data_iterator_from_presaved(_type='train',
+                                                    batch_size=params.batch_size,
                                                    tokenizer=tokenizer),
                                                    total=(dataloader.train_size // params.batch_size))
-        for data, labels in train_data:
-            batch_masks = data.gt(0)
+        for data, mask, labels in train_data:
+            data.cuda()
+            labels.cuda()
+            #print(labels)
+            #print(data.is_cuda)
+            batch_masks = mask != 0
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
 
             loss.backward()
@@ -61,22 +67,25 @@ def train(model, dataloader, optimizer, scheduler, params):
 
 def validate(model, dataloader, params):
     model.eval()
-    val_data = tqdm(dataloader.data_iterator(_type='val',
+    val_data = tqdm(dataloader.data_iterator_from_presaved(_type='val',
                                                batch_size=params.batch_size,
                                                tokenizer=tokenizer),
                                                total=(dataloader.val_size // params.batch_size))
     f1 = F1Avarage()
     loss_avg = RunningAverage()
     with torch.no_grad():
-        for data, labels in val_data:
-            batch_masks = data.gt(0)
+        for data, mask, labels in val_data:
+            data.cuda()
+            labels.cuda()
+            #print(labels)
+            #print(data.is_cuda)
+            batch_masks = mask != 0
             loss, logits = model(data, attention_mask=batch_masks, labels=labels)
             predicted = logits.max(2)[1]
             #print(predicted)
-            f1.batch_update(predicted, labels)
+            f1.batch_update(predicted, labels, batch_masks)
             loss_avg.update(loss.item())
             val_data.set_postfix(type='VAL',loss='{:05.3f}'.format(loss_avg()))
-            break
     metrics = {}
     metrics['loss'] = loss_avg()
     metrics['f1'] = f1()
@@ -86,7 +95,8 @@ def validate(model, dataloader, params):
 if __name__ == '__main__':
     args = parser.parse_args()
     params = Params()
-    params.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    params.device = torch.device('cuda' if args.gpu else 'cpu')
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -101,17 +111,23 @@ if __name__ == '__main__':
     dataloader = DataLoader(path_to_train=args.train_dir, path_to_test=args.test_dir, seed=params.seed, device=params.device)
 
     # Training
-    params.lr = 1e-3
+    params.lr = args.lr
+    print(params.lr*2)
     params.max_grad_norm = 1.0
     params.num_total_steps = (dataloader.train_size // params.batch_size)*params.epoch_num
-    params.num_warmup_steps = 1000
+    params.num_warmup_steps = params.num_total_steps // 100
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = DistilBertForTokenClassification(2) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
+    model = DistilBertForTokenClassification(2, args.top_rnn) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
     model.to(device=params.device)
 
     optimizer = AdamW(model.parameters(), lr=params.lr, correct_bias=False)  # To reproduce BertAdam specific behavior set correct_bias=False
     scheduler = WarmupLinearSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps)  # PyTorch scheduler
+
+    if args.restore_file is not None:
+        cp = load_checkpoint(args.restore_file)
+        model.load_state_dict(cp['state_dict'])
+        #optimizer.load_state_dict(['optim_dict'])
 
     train(model, dataloader, optimizer, scheduler, params)
     #print(validate(model, dataloader ,params))
