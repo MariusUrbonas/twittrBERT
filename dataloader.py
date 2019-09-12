@@ -1,16 +1,19 @@
 import numpy as np
 import torch
 import random
+from tqdm import tqdm
 
 
 class DataLoader():
 
-    def __init__(self, path_to_train, path_to_test, val_ratio=0.1, seed=42, shuffle=False):
+    def __init__(self, path_to_data, is_train=True, val_ratio=0.1, seed=42, shuffle=False):
         self.seed = seed
-        self.train, self.val = self.load(path=path_to_train, split_val=True, val_ratio=val_ratio, shuffle=shuffle)
-        self.test = self.load(path=path_to_test, split_val=False)
-        #self.train_size, self.val_size, self.test_size = len(self.train), len(self.val), len(self.test)
-        self.train_tokenized, self.val_tokenized, self.test_tokenized = None, None, None
+        self.is_train = is_train
+        if is_train:
+            self.data, self.val = self.load(path=path_to_data, split_val=True, val_ratio=val_ratio, shuffle=shuffle)
+        else:
+            self.data = self.load(path=path_to_data, split_val=False)
+        self.pre_encoded = False
 
 
     def load(self, path: str, split_val=False, val_ratio=None, shuffle=False):
@@ -45,21 +48,27 @@ class DataLoader():
         return data[:split], data[split:]
 
 
-    def pretokenize(self, tokenizer):
-        print("Pretokenizing datasets")
-        for data_type, data in [('train', self.train),('val', self.val), ('test', self.test)]:
-            print(">>> Tokenizing {} dataset".format(data_type))
+    def pre_encode(self, encoder):
+        print("Preencoding datasets")
+        if self.is_train:
+            to_encode = [('train', self.data),('val', self.val)]
+        else:
+            to_encode = [('test', self.data)]
+
+        for data_type, data in to_encode:
             num_tweets = len(data)
             longest = 0
             tweets_tokenized = []
             labels_tokenized = []
-            for tweet,keyphrase in data:
+            encode_data = tqdm(data)
+            for tweet,keyphrase in encode_data:
                 tweet = tokenizer.encode(tweet)
                 keyphrase = tokenizer.encode(keyphrase)
                 label = np.isin(tweet, keyphrase)
                 longest = max(len(tweet), longest)
                 tweets_tokenized.append(tweet)
                 labels_tokenized.append(label)
+                encode_data.set_postfix(encoding='data_type')
 
             data_placeholder = np.zeros((num_tweets, longest))
             label_placeholder = np.zeros((num_tweets, longest))
@@ -70,13 +79,11 @@ class DataLoader():
                 data_placeholder[i, :len(tweet)] = tweet
                 label_placeholder[i, :len(label)] = label
 
-            if data_type == 'train':
-                self.train_tokenized = np.stack([data_placeholder, label_placeholder])
+            if data_type == 'train' or data_type == 'test':
+                self.data = np.stack([data_placeholder, label_placeholder])
             if data_type == 'val':
-                self.val_tokenized = np.stack([data_placeholder, label_placeholder])
-            if data_type == 'test':
-                self.test_tokenized = np.stack([data_placeholder, label_placeholder])
-
+                self.val = np.stack([data_placeholder, label_placeholder])
+        self.pre_encoded = True
 
     def prepare_batch(self, data, batch_size, batch_i, use_tokenized, size):
 
@@ -92,6 +99,20 @@ class DataLoader():
         return batch[0], batch[1]
 
 
+    def size(self):
+        if self.pre_encoded:
+            _, size, _ = self.data.shape
+            if is_train:
+                _, val_size, _ = self.val.shape
+                return size, val_size
+        else:
+            size = len(self.data)
+            if is_train:
+                val_size = len(self.val)
+                return size, val_size
+        return (size, )
+
+
     def data_iterator(self, data_type='train', batch_size=128):
         """Returns a generator that yields batches data with tags.
         Args:
@@ -102,34 +123,14 @@ class DataLoader():
             batch_data: (np.array) shape: (batch_size, max_len)
             batch_tags: (np.array) shape: (batch_size, max_len)
         """
-        if self.train_tokenized is None:
-            print(">>> Data iterator was not provided tokenizer, iterating over untokenized data!")
-            use_tokenized = False
-            if data_type == 'train':
-                data = self.train
-            elif data_type == 'val':
-                data = self.val
-            elif data_type == 'test':
-                data = self.test
-            else:
-                raise ValueError(_type)
-        else:
-            use_tokenized = True
-            if data_type == 'train':
-                data = self.train_tokenized
-            elif data_type == 'val':
-                data = self.val_tokenized
-            elif data_type == 'test':
-                data = self.test_tokenized
-            else:
-                raise ValueError(_type)
+        data = self.data
+        size = self.size()[0]
 
-        if use_tokenized:
-            _, size, _ = data.shape
-        else:
-            size = len(data)
+        if self.is_train and data_type=='val':
+            data = self.val  
+            size = self.size()[1]
 
         for i in range(0,size//batch_size):
-            yield self.prepare_batch(data=data, batch_size=batch_size, batch_i=i, use_tokenized=use_tokenized, size=size)
+            yield self.prepare_batch(data=data, batch_size=batch_size, batch_i=i, use_tokenized=self.encoded, size=size)
 
 
