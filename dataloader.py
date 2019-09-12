@@ -62,13 +62,13 @@ class DataLoader():
             labels_tokenized = []
             encode_data = tqdm(data)
             for tweet,keyphrase in encode_data:
-                tweet = tokenizer.encode(tweet)
-                keyphrase = tokenizer.encode(keyphrase)
+                tweet = encoder.encode(tweet)
+                keyphrase = encoder.encode(keyphrase)
                 label = np.isin(tweet, keyphrase)
                 longest = max(len(tweet), longest)
                 tweets_tokenized.append(tweet)
                 labels_tokenized.append(label)
-                encode_data.set_postfix(encoding='data_type')
+                encode_data.set_postfix(encoding=data_type)
 
             data_placeholder = np.zeros((num_tweets, longest))
             label_placeholder = np.zeros((num_tweets, longest))
@@ -102,12 +102,12 @@ class DataLoader():
     def size(self):
         if self.pre_encoded:
             _, size, _ = self.data.shape
-            if is_train:
+            if self.is_train:
                 _, val_size, _ = self.val.shape
                 return size, val_size
         else:
             size = len(self.data)
-            if is_train:
+            if self.is_train:
                 val_size = len(self.val)
                 return size, val_size
         return (size, )
@@ -131,6 +131,6 @@ class DataLoader():
             size = self.size()[1]
 
         for i in range(0,size//batch_size):
-            yield self.prepare_batch(data=data, batch_size=batch_size, batch_i=i, use_tokenized=self.encoded, size=size)
+            yield self.prepare_batch(data=data, batch_size=batch_size, batch_i=i, use_tokenized=self.pre_encoded, size=size)
 
 

@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
     params.lr = args.lr
     params.max_grad_norm = 1.0
-    params.num_total_steps = (len(dataloader.train) // params.batch_size) * params.epoch_num
+    params.num_total_steps = (dataloader.size()[0]// params.batch_size) * params.epoch_num
     params.num_warmup_steps = params.num_total_steps // 100
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')

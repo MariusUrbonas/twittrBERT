@@ -19,8 +19,8 @@ def save_checkpoint(state, epoch, score, checkpoint, is_best, tag='experiment'):
     torch.save(state, filepath)
 
 
-def load_checkpoint(checkpoint_folder, checkpoint_name):
-    filepath = os.path.join(checkpoint_folder, checkpoint_name)
+def load_checkpoint(filepath):
+    #filepath = os.path.join(checkpoint_folder, checkpoint_name)
 
     print("<<< Loading checkpoint from ", filepath)
 

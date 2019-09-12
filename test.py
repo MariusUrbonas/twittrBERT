@@ -15,6 +15,7 @@ parser.add_argument('--restore_file', default='models/', help="Directory contain
 parser.add_argument('--tag', default='experiment_0', help="Tag for experiment")
 parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
 parser.add_argument('--batch_size', type=int, default=128, help="random seed for initialization")
+parser.add_argument('--distil', default=False, action='store_true', help="Use Distiled Bert Model")
 
 def test(model, dataloader, params):
     val_data = tqdm(dataloader.data_iterator(data_type='test',
@@ -47,10 +48,9 @@ if __name__ == '__main__':
     params.device = torch.device('cuda' if args.gpu else 'cpu')
 
     params.tag = args.tag
-    params.save_dir = args.save_dir
     params.batch_size = args.batch_size
 
-    test_dataloader = DataLoader(path_to_data=args.train_data, seed=params.seed, shuffle=True)
+    test_dataloader = DataLoader(path_to_data=args.test_data, is_train=False)
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     test_dataloader.pre_encode(tokenizer)
@@ -66,5 +66,5 @@ if __name__ == '__main__':
     checkp = load_checkpoint(args.restore_file)
     model.load_state_dict(checkp['state_dict'])
 
-    metrics = test(model, dataloader, params)
-    print('On test set: F1={}, Loss={}'.format(epoch , metrics.f1(), metrics.loss))
+    metrics = test(model, test_dataloader, params)
+    print('On test set: F1={}, Loss={}'.format(metrics.f1(), metrics.loss))
