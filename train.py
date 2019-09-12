@@ -12,7 +12,7 @@ from models import DistilBertForTokenClassification
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--train_data', default='data/trnTweet.txt', help="Directory containing the train dataset")
-parser.add_argument('--test_data', default='data/testTweet.txt', help="Directory containing the test dataset")
+#parser.add_argument('--test_data', default='data/testTweet.txt', help="Directory containing the test dataset")
 parser.add_argument('--save_dir', default='models/', help="Directory containing the BERT model in PyTorch")
 parser.add_argument('--tag', default='experiment_0', help="Tag for experiment")
 parser.add_argument('--batch_size', type=int, default=128, help="random seed for initialization")
@@ -23,6 +23,7 @@ parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before training")
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
+parser.add_argument('--save_ckpoints', default=False, action='store_true', help="Whether to save sub best checkpoints")
 parser.add_argument('--top_rnn', default=False, action='store_true', help="Use Rnn on  top if using custom Distil bert")
 parser.add_argument('--data_parr', default=False, action='store_true', help="Use data parralel")
 parser.add_argument('--distil', default=False, action='store_true', help="Use Distiled Bert Model")
@@ -37,8 +38,8 @@ def train(model, dataloader, optimizer, scheduler, params):
     for epoch in range(params.epoch_num):
         loss_avg = RunningAverage()
         train_data = tqdm(dataloader.data_iterator(data_type='train',
-                                                    batch_size=params.batch_size),
-                                                   total=(len(dataloader.train) // params.batch_size))
+                                                   batch_size=params.batch_size),
+                                                   total=(dataloader.size()[0] // params.batch_size))
         optimizer.zero_grad()
         model.zero_grad()
         for data, labels in train_data:
@@ -57,6 +58,7 @@ def train(model, dataloader, optimizer, scheduler, params):
             optimizer.step()
             scheduler.step()
             model.zero_grad()
+            optimizer.zero_grad()
             # update the average loss
             loss_avg.update(loss.item())
             train_data.set_postfix(type='TRAIN',epoch=epoch,loss='{:05.3f}'.format(loss_avg()))
@@ -65,7 +67,7 @@ def train(model, dataloader, optimizer, scheduler, params):
         print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics.f1(), metrics.loss))
         stats.update(metrics, epoch, loss_avg())
         stats.save()
-        if epoch % params.save_freq == 0 and False:
+        if epoch % params.save_freq == 0 and params.save_checkpoints:
             save_checkpoint({'epoch': epoch,
                                     'state_dict': model.state_dict(),
                                     'optim_dict': optimizer.state_dict()},
@@ -88,7 +90,7 @@ def train(model, dataloader, optimizer, scheduler, params):
 def validate(model, dataloader, params):
     val_data = tqdm(dataloader.data_iterator(data_type='val',
                                                batch_size=params.batch_size),
-                                               total=(len(dataloader.val) // params.batch_size))
+                                               total=(dataloader.size()[1] // params.batch_size))
     metrics = Metrics()
     loss_avg = RunningAverage()
     with torch.no_grad():
@@ -126,8 +128,9 @@ if __name__ == '__main__':
     params.batch_size = args.batch_size
     params.epoch_num = args.num_epoch
     params.save_freq = args.save_freq
+    params.save_checkpoints = args.save_ckpoints
 
-    dataloader = DataLoader(path_to_train=args.train_data, path_to_test=args.test_data, seed=params.seed, shuffle=True)
+    dataloader = DataLoader(path_to_data=args.train_data, seed=params.seed, shuffle=True)
 
     params.lr = args.lr
     params.max_grad_norm = 1.0
@@ -135,7 +138,7 @@ if __name__ == '__main__':
     params.num_warmup_steps = params.num_total_steps // 100
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    dataloader.pretokenize(tokenizer)
+    dataloader.pre_encode(tokenizer)
 
     model = DistilBertForTokenClassification(2, args.top_rnn) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
 
