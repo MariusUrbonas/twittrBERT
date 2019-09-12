@@ -40,7 +40,9 @@ def train(model, dataloader, optimizer, scheduler, params):
                                                     batch_size=params.batch_size),
                                                    total=(len(dataloader.train) // params.batch_size))
         optimizer.zero_grad()
+        model.zero_grad()
         for data, labels in train_data:
+            model.train()
             data = torch.tensor(data, dtype=torch.long).to(params.device)
             labels = torch.tensor(labels, dtype=torch.long).to(params.device)
 
@@ -54,7 +56,7 @@ def train(model, dataloader, optimizer, scheduler, params):
 
             optimizer.step()
             scheduler.step()
-            optimizer.zero_grad()
+            model.zero_grad()
             # update the average loss
             loss_avg.update(loss.item())
             train_data.set_postfix(type='TRAIN',epoch=epoch,loss='{:05.3f}'.format(loss_avg()))
@@ -63,7 +65,7 @@ def train(model, dataloader, optimizer, scheduler, params):
         print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics.f1(), metrics.loss))
         stats.update(metrics, epoch, loss_avg())
         stats.save()
-        if epoch % params.save_freq == 0:
+        if epoch % params.save_freq == 0 and False:
             save_checkpoint({'epoch': epoch,
                                     'state_dict': model.state_dict(),
                                     'optim_dict': optimizer.state_dict()},
@@ -79,12 +81,11 @@ def train(model, dataloader, optimizer, scheduler, params):
                                     'optim_dict': optimizer.state_dict()},
                                     is_best=True,
                                     tag=params.tag,
-                                    epoch=epoch,
-                                    score=metrics.f1(),
+                                    epoch='generic',
+                                    score='epic',
                                     checkpoint=params.save_dir)
 
 def validate(model, dataloader, params):
-    model.eval()
     val_data = tqdm(dataloader.data_iterator(data_type='val',
                                                batch_size=params.batch_size),
                                                total=(len(dataloader.val) // params.batch_size))
@@ -92,6 +93,7 @@ def validate(model, dataloader, params):
     loss_avg = RunningAverage()
     with torch.no_grad():
         for data, labels in val_data:
+            model.eval()
             data = torch.tensor(data, dtype=torch.long).to(params.device)
             labels = torch.tensor(labels, dtype=torch.long).to(params.device)
 

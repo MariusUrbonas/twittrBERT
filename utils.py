@@ -45,8 +45,8 @@ class Stats:
         self.data[epoch]['recall'] = metrics.recall()
 
     def save(self):
-        if not os.path.exists(self.save_path):
-            os.mkdir(save_dir)
+        if not os.path.exists(self.save_dir):
+            os.mkdir(self.save_dir)
         with open(self.save_path, 'wb') as handle:
             pickle.dump(self.data, handle, protocol=pickle.HIGHEST_PROTOCOL)
    
@@ -93,10 +93,14 @@ class Metrics:
 
     def update(self, batch_pred, batch_true, batch_mask):
         #mask = batch_mask[0].cpu().numpy()
-        mask = batch_mask[0]
+        mask = batch_mask
+        #print(batch_pred[mask].shape)
+        #print(batch_true.shape)
+        #print(batch_pred)
         self.true_pos += np.sum(batch_pred[mask] & batch_true[mask])
         self.false_pos += np.sum(batch_pred[mask] & np.logical_not(batch_true[mask]))
         self.false_neg += np.sum(np.logical_not(batch_pred[mask]) & batch_true[mask])
+        #print(self.true_pos, self.false_pos, self.false_neg)
 
     def f1(self):
         if self.precision() == 0 and self.recall() == 0:
