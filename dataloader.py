@@ -56,19 +56,19 @@ class DataLoader():
     def pre_encode(self, encoder):
         # Load if cache exists
         if self.cache_path.exists():
-        if self.is_train:
-            if self.cache_train.exists() and self.cache_val.exists():
-                train_dic = pickle.load(str(self.cache_train))
-                self.train = train_dic['train']
-                self.val = train_dic['val']
-                self.pre_encoded = True
-                return
-        else:
-            if self.cache_test.exists():
-                test_dic = pickle.load(str(self.cache_test))
-                self.test = test_dic['test']
-                self.pre_encoded = True
-                return
+            if self.is_train:
+                if self.cache_train.exists() and self.cache_val.exists():
+                    train_dic = pickle.load(str(self.cache_train))
+                    self.train = train_dic['train']
+                    self.val = train_dic['val']
+                    self.pre_encoded = True
+                    return
+            else:
+                if self.cache_test.exists():
+                    test_dic = pickle.load(str(self.cache_test))
+                    self.test = test_dic['test']
+                    self.pre_encoded = True
+                    return
 
 
         print("Preencoding datasets")
