@@ -148,7 +148,7 @@ if __name__ == '__main__':
     model.to(params.device)
 
     optimizer = AdamW(model.parameters(), lr=params.lr, correct_bias=False)  # To reproduce BertAdam specific behavior set correct_bias=False
-    scheduler = WarmupCosineWithHardRestartsSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps, cycles=args.cycles ,last_epoch=args.num_epoch)  # PyTorch scheduler
+    scheduler = WarmupConstantSchedule(optimizer, warmup_steps=params.num_warmup_steps, last_epoch=params.num_epoch) #, t_total=params.num_total_steps, cycles=args.cycles ,last_epoch=params.num_epoch)  # PyTorch scheduler
 
     if args.restore_file is not None:
         checkp = load_checkpoint(args.restore_file)
