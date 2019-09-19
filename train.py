@@ -25,9 +25,7 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
 parser.add_argument('--save_ckpoints', default=False, action='store_true', help="Whether to save sub best checkpoints")
 parser.add_argument('--top_rnn', default=False, action='store_true', help="Use Rnn on  top if using custom Distil bert")
-parser.add_argument('--data_parr', default=False, action='store_true', help="Use data parralel")
 parser.add_argument('--distil', default=False, action='store_true', help="Use Distiled Bert Model")
-
 
 
 def train(model, dataloader, optimizer, scheduler, params):
