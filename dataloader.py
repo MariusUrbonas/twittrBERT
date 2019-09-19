@@ -57,16 +57,16 @@ class DataLoader():
         # Load if cache exists
         if self.cache_path.exists():
             if self.is_train:
-                if self.cache_train.exists() and self.cache_val.exists():
-                    train_dic = pickle.load(str(self.cache_train))
-                    self.train = train_dic['train']
-                    self.val = train_dic['val']
+                if self.cache_train.exists():
+                    train_dic = pickle.load(open(str(self.cache_train),'rb'))
+                    self.train = np.array(train_dic['train'])
+                    self.val = np.array(train_dic['val'])
                     self.pre_encoded = True
                     return
             else:
                 if self.cache_test.exists():
-                    test_dic = pickle.load(str(self.cache_test))
-                    self.test = test_dic['test']
+                    test_dic = pickle.load(open(str(self.cache_test),'rb'))
+                    self.test = np.array(test_dic['test'])
                     self.pre_encoded = True
                     return
 
@@ -109,10 +109,14 @@ class DataLoader():
         self.cache_path.mkdir(parents=True, exist_ok=True) 
         if self.is_train:
             data = {'train': self.data, 'val': self.val}
-            pickle.dump(data, open( str(self.cache_train), "wb" ))
+            fobject = open( str(self.cache_train), "wb" )
+            pickle.dump(data, fobject)
+            fobject.close()
         else:
             data = {'test': self.data}
-            pickle.dump(data, open( str(self.cache_test), "wb" ))
+            fobject = open( str(self.cache_test), "wb" )
+            pickle.dump(data, fobject)
+            fobject.close()
         self.pre_encoded = True
 
     def prepare_batch(self, data, batch_size, batch_i, use_tokenized, size):
