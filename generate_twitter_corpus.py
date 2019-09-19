@@ -78,6 +78,8 @@ class Tweet_processer:
         text = cls.replace_url(text)
         text = cls.replace_nl(text)
         sentences = cls.split_to_sentences(text)
+        if len(sentences) == min_num:
+            return sentences
         if len(sentences) < min_num:
             return None
         sentences = cls.merge_short_sentences(sentences, min_length)
@@ -100,11 +102,10 @@ def process_tweets(input):
 def stats(data):
     num_tweets = 0
     sent_lenghts = 0
-    for data_row in data:
-        num_tweets += len(data_row)
-        tweet_lenghts.extend(list(map(len, data_row)))
-    return {'num_lines': num_lines,
-            'mean_lenght': sum(sent_lenghts)/num_lines}
+    num_tweets = len(data)
+    tweet_lenghts = list(map(len, data))
+    return {'num_tweets': num_tweets,
+            'mean_lenght': sum(tweet_lenghts)/num_tweets}
 
 
 def main():
@@ -119,11 +120,12 @@ def main():
                         help="Minimum word count allowed for a sentence")
     parser.add_argument("--min_sent_num", type=int, default=2,
                         help="Minimum sentence count allowed for a sentence")
-    parser.add_argument("--num_tweets", type=int, default=375000,
-                        help="Minimum word count allowed for a sentence")
+    parser.add_argument("--num_tweets", type=int, default=-1,
+                        help="Max num tweets required, set to -1 of you want all")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
+    args.output_dir.mkdir(parents=True, exist_ok=True) 
 
     # Get tweet json.bz2 file paths
     fnames = []
@@ -134,26 +136,38 @@ def main():
 
     # Extract relevant text
     data = []
+    batch_mult = 4
     if not args.test:
-        with Pool(args.num_workers) as p:
-            input = zip(process_tweets, [args.min_sent_len]*len(process_tweets), [args.min_sent_num]*len(process_tweets))
-            data = list(tqdm(p.imap(input, fnames), total=len(fnames)))
+        pbar = tqdm(range(len(fnames)//(args.num_workers*batch_mult)))
+        for i in pbar:
+            fname_batch = fnames[i:i+(args.num_workers*batch_mult)]
+            with Pool(args.num_workers) as p:
+                input = list(zip(fname_batch, [args.min_sent_len]*len(fname_batch), [args.min_sent_num]*len(fname_batch)))
+                output = list(p.imap(process_tweets, input))
+                flat_data = [item for sublist in output for item in sublist]    
+                data.extend(flat_data)
+            pbar.set_description("Data contains %d tweets" % len(data))
+            if args.num_tweets != -1 and len(data) > args.num_tweets:
+                break
+
     else:
         print('>> Tesing on 2 files')
         for fname in tqdm(fnames[:2]):
-            data.append(process_tweets(fname))
+            data.extend(process_tweets((fname,args.min_sent_len,args.min_sent_num)))
 
-    flat_data = [item for sublist in data for item in sublist]    
+    #flat_data = [item for sublist in data for item in sublist]    
 
     # Write text into file
-    save_file = str(args.output_dir) + '/corpus_len_{}_min_sent_{}_min_len_{}.txt'.format(args.num_tweets, args.min_sent_num, min_sent_len)
+    st = stats(data)
+    num_items = st['num_tweets'] if st['num_tweets'] < args.num_tweets else args.num_tweets
+    save_file = str(args.output_dir) + '/corpus_len_{}_min_sent_{}_min_len_{}.txt'.format(num_items, args.min_sent_num, args.min_sent_len)
     with open(save_file, "w") as text_file:
-        for tweet in flat_data[:args.num_tweets]:
+        for tweet in data[:args.num_tweets]:
             for line in tweet:
                 text_file.write(line+'\n')
             text_file.write('\n')
 
-    print(stats(data))
+    print(st)
 
 if __name__ == '__main__':
     main()
