@@ -75,7 +75,7 @@ def train(model, dataloader, optimizer, scheduler, params):
                                     epoch=epoch,
                                     score=metrics.f1(),
                                     checkpoint=params.save_dir)
-        if metrics.loss > best_val_loss:
+        if metrics.loss < best_val_loss:
             best_val_loss = metrics.loss
             save_checkpoint({'epoch': epoch,
                                     'state_dict': model.state_dict(),
