@@ -19,6 +19,7 @@ parser.add_argument('--batch_size', type=int, default=128, help="random seed for
 parser.add_argument('--seed', type=int, default=42, help="random seed for initialization")
 parser.add_argument('--save_freq', type=int, default=1)
 parser.add_argument('--num_epoch', type=int, default=10, help="random seed for initialization")
+parser.add_argument('--cycles', type=float, default=5.0)
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before training")
 parser.add_argument('--lr', type=float, default=1e-3)
@@ -30,7 +31,7 @@ parser.add_argument('--distil', default=False, action='store_true', help="Use Di
 
 def train(model, dataloader, optimizer, scheduler, params):
     print("Starting training...")
-    best_val_f1 = 0.0
+    best_val_loss = 100
     #print(params.save_dir, params.tag)
     stats = Stats(params.save_dir, params.tag)
     for epoch in range(params.epoch_num):
@@ -74,8 +75,8 @@ def train(model, dataloader, optimizer, scheduler, params):
                                     epoch=epoch,
                                     score=metrics.f1(),
                                     checkpoint=params.save_dir)
-        if metrics.f1() > best_val_f1:
-            best_val_f1 = metrics.f1()
+        if metrics.loss > best_val_loss:
+            best_val_loss = metrics.loss
             save_checkpoint({'epoch': epoch,
                                     'state_dict': model.state_dict(),
                                     'optim_dict': optimizer.state_dict()},
@@ -147,7 +148,7 @@ if __name__ == '__main__':
     model.to(params.device)
 
     optimizer = AdamW(model.parameters(), lr=params.lr, correct_bias=False)  # To reproduce BertAdam specific behavior set correct_bias=False
-    scheduler = WarmupLinearSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps)  # PyTorch scheduler
+    scheduler = WarmupCosineWithHardRestartsSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps, cycles=args.cycles ,last_epoch=params.num_epoch)  # PyTorch scheduler
 
     if args.restore_file is not None:
         checkp = load_checkpoint(args.restore_file)

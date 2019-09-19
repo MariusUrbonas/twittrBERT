@@ -112,7 +112,7 @@ class DataLoader():
             pickle.dump(data, open( str(self.cache_train), "wb" ))
         else:
             data = {'test': self.data}
-             pickle.dump(data, open( str(self.cache_test), "wb" ))
+            pickle.dump(data, open( str(self.cache_test), "wb" ))
         self.pre_encoded = True
 
     def prepare_batch(self, data, batch_size, batch_i, use_tokenized, size):

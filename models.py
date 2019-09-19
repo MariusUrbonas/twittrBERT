@@ -19,6 +19,12 @@ class DistilBertForTokenClassification(torch.nn.Module):
         self.dropout        = nn.Dropout(hidden_dropout_prob)
         self.classifier     = nn.Linear(hidden_size, num_labels)
 
+    def train(self):
+        self.bert.train()
+
+    def eval(self):
+        self.bert.eval()
+
     def forward(self, input_ids, labels=None, attention_mask=None):
         if self.no_grad_bert:
             with torch.no_grad():
