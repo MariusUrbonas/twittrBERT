@@ -2,11 +2,16 @@ import numpy as np
 import torch
 import random
 from tqdm import tqdm
+from pathlib import Path
+import pickle
 
 
 class DataLoader():
 
     def __init__(self, path_to_data, is_train=True, val_ratio=0.1, seed=42, shuffle=False):
+        self.cache_path = Path('./__cache__')
+        self.cache_train = Path('./__cache__') / 'train.cache'
+        self.cache_test = Path('./__cache__') / 'test.caches'
         self.seed = seed
         self.is_train = is_train
         if is_train:
@@ -49,6 +54,23 @@ class DataLoader():
 
 
     def pre_encode(self, encoder):
+        # Load if cache exists
+        if self.cache_path.exists():
+        if self.is_train:
+            if self.cache_train.exists() and self.cache_val.exists():
+                train_dic = pickle.load(str(self.cache_train))
+                self.train = train_dic['train']
+                self.val = train_dic['val']
+                self.pre_encoded = True
+                return
+        else:
+            if self.cache_test.exists():
+                test_dic = pickle.load(str(self.cache_test))
+                self.test = test_dic['test']
+                self.pre_encoded = True
+                return
+
+
         print("Preencoding datasets")
         if self.is_train:
             to_encode = [('train', self.data),('val', self.val)]
@@ -83,6 +105,14 @@ class DataLoader():
                 self.data = np.stack([data_placeholder, label_placeholder])
             if data_type == 'val':
                 self.val = np.stack([data_placeholder, label_placeholder])
+
+        self.cache_path.mkdir(parents=True, exist_ok=True) 
+        if self.is_train:
+            data = {'train': self.data, 'val': self.val}
+            pickle.dump(data, open( str(self.cache_train), "wb" ))
+        else:
+            data = {'test': self.data}
+             pickle.dump(data, open( str(self.cache_test), "wb" ))
         self.pre_encoded = True
 
     def prepare_batch(self, data, batch_size, batch_i, use_tokenized, size):
