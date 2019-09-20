@@ -216,37 +216,37 @@ def create_instances_from_document(
 
                 tokens_b = []
 
-                # Random next
-                if len(current_chunk) == 1 or random() < 0.5:
-                    is_random_next = True
-                    target_b_length = target_seq_length - len(tokens_a)
+                # # Random next
+                # if len(current_chunk) == 1 or random() < 0.5:
+                #     is_random_next = True
+                #     target_b_length = target_seq_length - len(tokens_a)
 
-                    # Sample a random document, with longer docs being sampled more frequently
-                    random_document = doc_database.sample_doc(current_idx=doc_idx, sentence_weighted=True)
+                #     # Sample a random document, with longer docs being sampled more frequently
+                #     random_document = doc_database.sample_doc(current_idx=doc_idx, sentence_weighted=True)
 
-                    random_start = randrange(0, len(random_document))
-                    for j in range(random_start, len(random_document)):
-                        tokens_b.extend(random_document[j])
-                        if len(tokens_b) >= target_b_length:
-                            break
-                    # We didn't actually use these segments so we "put them back" so
-                    # they don't go to waste.
-                    num_unused_segments = len(current_chunk) - a_end
-                    i -= num_unused_segments
-                # Actual next
-                else:
-                    is_random_next = False
-                    for j in range(a_end, len(current_chunk)):
-                        tokens_b.extend(current_chunk[j])
+                #     random_start = randrange(0, len(random_document))
+                #     for j in range(random_start, len(random_document)):
+                #         tokens_b.extend(random_document[j])
+                #         if len(tokens_b) >= target_b_length:
+                #             break
+                #     # We didn't actually use these segments so we "put them back" so
+                #     # they don't go to waste.
+                #     num_unused_segments = len(current_chunk) - a_end
+                #     i -= num_unused_segments
+                # # Actual next
+                # else:
+                #     is_random_next = False
+                #     for j in range(a_end, len(current_chunk)):
+                #         tokens_b.extend(current_chunk[j])
+                
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
 
                 assert len(tokens_a) >= 1
-                assert len(tokens_b) >= 1
+                #assert len(tokens_b) >= 1
 
-                tokens = ["[CLS]"] + tokens_a + ["[SEP]"] + tokens_b + ["[SEP]"]
+                tokens = ["[CLS]"] + tokens_a + ["[SEP]"]
                 # The segment IDs are 0 for the [CLS] token, the A tokens and the first [SEP]
-                # They are 1 for the B tokens and the final [SEP]
-                segment_ids = [0 for _ in range(len(tokens_a) + 2)] + [1 for _ in range(len(tokens_b) + 1)]
+                segment_ids = [0 for _ in range(len(tokens_a) + 2)]
 
                 tokens, masked_lm_positions, masked_lm_labels = create_masked_lm_predictions(
                     tokens, masked_lm_prob, max_predictions_per_seq, whole_word_mask, vocab_list)
@@ -254,7 +254,7 @@ def create_instances_from_document(
                 instance = {
                     "tokens": tokens,
                     "segment_ids": segment_ids,
-                    "is_random_next": is_random_next,
+                    "is_random_next": False,
                     "masked_lm_positions": masked_lm_positions,
                     "masked_lm_labels": masked_lm_labels}
                 instances.append(instance)

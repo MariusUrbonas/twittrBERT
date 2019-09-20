@@ -71,13 +71,14 @@ class Tweet_processer:
         return merged_sentences
 
     @classmethod
-    def preprocess_tweet(cls, tweet_json, min_length, min_num):
+    def preprocess_tweet(cls, tweet_json, min_length, min_num, split):
         text = Tweet_parser.get_full_text(tweet_json)
         if text is None:
             return None
         text = cls.replace_url(text)
         text = cls.replace_nl(text)
-        sentences = cls.split_to_sentences(text)
+        if split:
+            sentences = cls.split_to_sentences(text)
         if len(sentences) == min_num:
             return sentences
         if len(sentences) < min_num:
@@ -89,12 +90,12 @@ class Tweet_processer:
 
 
 def process_tweets(input): 
-    filename, min_sent_length, min_sent_num = input
+    filename, min_sent_length, min_sent_num, split_sent = input
     data = []
     with bz2.open(str(filename), "rt") as bzinput:
         for i, line in enumerate(bzinput):
             tweet_json = json.loads(line)
-            tweet_data = Tweet_processer.preprocess_tweet(tweet_json, min_sent_length, min_sent_num)
+            tweet_data = Tweet_processer.preprocess_tweet(tweet_json, min_sent_length, min_sent_num, split_sent)
             if tweet_data is not None:
                 data.append(tweet_data)
     return data
@@ -122,6 +123,7 @@ def main():
                         help="Minimum sentence count allowed for a sentence")
     parser.add_argument("--num_tweets", type=int, default=-1,
                         help="Max num tweets required, set to -1 of you want all")
+    parser.add_argument("--split_sent", action="store_true")
     parser.add_argument("--test", action="store_true")
     args = parser.parse_args()
 
@@ -142,7 +144,7 @@ def main():
         for i in pbar:
             fname_batch = fnames[i:i+(args.num_workers*batch_mult)]
             with Pool(args.num_workers) as p:
-                input = list(zip(fname_batch, [args.min_sent_len]*len(fname_batch), [args.min_sent_num]*len(fname_batch)))
+                input = list(zip(fname_batch, [args.min_sent_len]*len(fname_batch), [args.min_sent_num]*len(fname_batch), [args.split_sent]*len(fname_batch)))
                 output = list(p.imap(process_tweets, input))
                 flat_data = [item for sublist in output for item in sublist]    
                 data.extend(flat_data)

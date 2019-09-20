@@ -3,15 +3,15 @@ import torch
 import random
 from tqdm import tqdm
 from pathlib import Path
-import pickle
 
 
 class DataLoader():
 
     def __init__(self, path_to_data, is_train=True, val_ratio=0.1, seed=42, shuffle=False):
-        self.cache_path = Path('./__cache__')
-        self.cache_train = Path('./__cache__') / 'train.cache'
-        self.cache_test = Path('./__cache__') / 'test.caches'
+        self.cache_path = Path('./.cache')
+        self.cache_train = Path('./.cache') / 'train.cache'
+        self.cache_val = Path('./.cache') / 'val.cache'
+        self.cache_test = Path('./.cache') / 'test.caches'
         self.seed = seed
         self.is_train = is_train
         if is_train:
@@ -57,16 +57,16 @@ class DataLoader():
         # Load if cache exists
         if self.cache_path.exists():
             if self.is_train:
-                if self.cache_train.exists():
-                    train_dic = pickle.load(open(str(self.cache_train),'rb'))
-                    self.train = np.array(train_dic['train'])
-                    self.val = np.array(train_dic['val'])
+                if Path(str(self.cache_train) + '.npy').exists():
+                    print(" >>> Loading preencoded data from the cache")
+                    self.data = np.load(open(str(self.cache_train) + '.npy','rb'))
+                    self.val = np.load(open(str(self.cache_val) + '.npy','rb'))
                     self.pre_encoded = True
                     return
             else:
-                if self.cache_test.exists():
-                    test_dic = pickle.load(open(str(self.cache_test),'rb'))
-                    self.test = np.array(test_dic['test'])
+                if Path(str(self.cache_test) + '.npy').exists():
+                    print(" >>> Loading preencoded data from the cache")
+                    self.data = np.load(open(str(self.cache_test) + '.npy','rb'))
                     self.pre_encoded = True
                     return
 
@@ -84,7 +84,7 @@ class DataLoader():
             labels_tokenized = []
             encode_data = tqdm(data)
             for tweet,keyphrase in encode_data:
-                tweet = encoder.encode(tweet)
+                tweet = encoder.encode('[CLS] ' + tweet + ' [SEP]')
                 keyphrase = encoder.encode(keyphrase)
                 label = np.isin(tweet, keyphrase)
                 longest = max(len(tweet), longest)
@@ -108,14 +108,17 @@ class DataLoader():
 
         self.cache_path.mkdir(parents=True, exist_ok=True) 
         if self.is_train:
-            data = {'train': self.data, 'val': self.val}
-            fobject = open( str(self.cache_train), "wb" )
-            pickle.dump(data, fobject)
-            fobject.close()
+            #data = {'train': self.data, 'val': self.val}
+            #fobject = open( str(self.cache_train), "wb" )
+            np.save(self.cache_train, self.data)
+            #fobject.close()
+            #fobject = open( str(self.cache_val), "wb" )
+            np.save(self.cache_val, self.val)
+            #fobject.close()
         else:
-            data = {'test': self.data}
+            #data = {'test': self.data}
             fobject = open( str(self.cache_test), "wb" )
-            pickle.dump(data, fobject)
+            np.save(self.data, fobject)
             fobject.close()
         self.pre_encoded = True
 

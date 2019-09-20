@@ -19,11 +19,11 @@ parser.add_argument('--batch_size', type=int, default=128, help="random seed for
 parser.add_argument('--seed', type=int, default=42, help="random seed for initialization")
 parser.add_argument('--save_freq', type=int, default=1)
 parser.add_argument('--num_epoch', type=int, default=10, help="random seed for initialization")
-parser.add_argument('--cycles', type=float, default=5.0)
+#parser.add_argument('--cycles', type=float, default=5.0)
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before training")
-parser.add_argument('--lr', type=float, default=1e-3)
-parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
+parser.add_argument('--lr', type=float, default=1e-4)
+#parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
 parser.add_argument('--save_ckpoints', default=False, action='store_true', help="Whether to save sub best checkpoints")
 parser.add_argument('--top_rnn', default=False, action='store_true', help="Use Rnn on  top if using custom Distil bert")
 parser.add_argument('--distil', default=False, action='store_true', help="Use Distiled Bert Model")
@@ -114,14 +114,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
     params = Params()
 
-    params.device = torch.device('cuda' if args.gpu else 'cpu')
+    if torch.cuda.is_available():
+        print(" >> Using Cuda")
+        params.device = torch.device('cuda')
+        torch.cuda.manual_seed_all(args.seed)  # set random seed for all GPUs
+    else:
+        print(" >> Using Cpu")
+        params.device = torch.device('cpu')
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
-    if args.gpu:
-        torch.cuda.manual_seed_all(args.seed)  # set random seed for all GPUs
-    params.seed = args.seed
 
+    params.seed = args.seed
     params.tag = args.tag
     params.save_dir = args.save_dir
     params.batch_size = args.batch_size
