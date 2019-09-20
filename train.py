@@ -143,7 +143,8 @@ if __name__ == '__main__':
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     dataloader.pre_encode(tokenizer)
 
-    model = DistilBertForTokenClassification(2, args.top_rnn) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
+    #model = DistilBertForTokenClassification(2, args.top_rnn) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
+    model = BertForTokenClassification.from_pretrained('./temp/pytorch_model.bin', num_labels=2)
 
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
