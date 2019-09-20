@@ -14,7 +14,7 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 
 from pytorch_transformers import WEIGHTS_NAME, CONFIG_NAME
-from pytorch_transformers.modeling_bert import BertForPreTraining
+from pytorch_transformers.modeling_bert import BertForPreTraining, BertForMaskedLM
 from pytorch_transformers.tokenization_bert import BertTokenizer
 from pytorch_transformers.optimization import AdamW, WarmupLinearSchedule
 
@@ -234,7 +234,7 @@ def main():
         num_train_optimization_steps = num_train_optimization_steps // torch.distributed.get_world_size()
 
     # Prepare model
-    model = BertForPreTraining.from_pretrained(args.bert_model)
+    model = BertForMaskedLM.from_pretrained(args.bert_model)
     # We don't need to manually call model.half() following Apex's recommend
     # if args.fp16:
     #     model.half()
@@ -309,7 +309,7 @@ def main():
             for step, batch in enumerate(train_dataloader):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, input_mask, segment_ids, lm_label_ids, is_next = batch
-                outputs = model(input_ids, segment_ids, input_mask, lm_label_ids, is_next)
+                outputs = model(input_ids, attention_mask=input_mask, masked_lm_labels=lm_label_ids)
                 loss = outputs[0]
                 if n_gpu > 1:
                     loss = loss.mean() # mean() to average on multi-gpu.
