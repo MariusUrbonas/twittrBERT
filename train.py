@@ -17,6 +17,7 @@ parser.add_argument('--save_dir', default='models/', help="Directory containing 
 parser.add_argument('--tag', default='experiment_0', help="Tag for experiment")
 parser.add_argument('--batch_size', type=int, default=128, help="random seed for initialization")
 parser.add_argument('--seed', type=int, default=42, help="random seed for initialization")
+parser.add_argument('--warmup_steps', type=int, default=400, help="random seed for initialization")
 parser.add_argument('--save_freq', type=int, default=1)
 parser.add_argument('--num_epoch', type=int, default=10, help="random seed for initialization")
 #parser.add_argument('--cycles', type=float, default=5.0)
@@ -24,7 +25,7 @@ parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before training")
 parser.add_argument('--lr', type=float, default=1e-4)
 #parser.add_argument('--gpu', default=False, action='store_true', help="Whether to use GPUs if available")
-parser.add_argument('--save_ckpoints', default=False, action='store_true', help="Whether to save sub best checkpoints")
+parser.add_argument('--save_checkpoints', default=False, action='store_true', help="Whether to save sub best checkpoints")
 parser.add_argument('--top_rnn', default=False, action='store_true', help="Use Rnn on  top if using custom Distil bert")
 parser.add_argument('--distil', default=False, action='store_true', help="Use Distiled Bert Model")
 
@@ -138,13 +139,17 @@ if __name__ == '__main__':
     params.lr = args.lr
     params.max_grad_norm = 1.0
     params.num_total_steps = (dataloader.size()[0]// params.batch_size) * params.epoch_num
-    params.num_warmup_steps = params.num_total_steps // 100
+    params.num_warmup_steps = args.warmup_steps
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     dataloader.pre_encode(tokenizer)
 
     #model = DistilBertForTokenClassification(2, args.top_rnn) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
     model = BertForTokenClassification.from_pretrained('./temp/pytorch_model.bin', num_labels=2)
+    if args.restore_file is not None:
+        model = BertForTokenClassification.from_pretrained(args.restore_file, num_labels=2)
+    else:
+        BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
 
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
@@ -154,10 +159,6 @@ if __name__ == '__main__':
 
     optimizer = AdamW(model.parameters(), lr=params.lr, correct_bias=False)  # To reproduce BertAdam specific behavior set correct_bias=False
     scheduler = WarmupLinearSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps)  # PyTorch scheduler
-
-    if args.restore_file is not None:
-        checkp = load_checkpoint(args.restore_file)
-        model.load_state_dict(checkp['state_dict'])
 
     train(model, dataloader, optimizer, scheduler, params)
 
