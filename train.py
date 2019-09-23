@@ -145,7 +145,7 @@ if __name__ == '__main__':
     dataloader.pre_encode(tokenizer)
 
     #model = DistilBertForTokenClassification(2, args.top_rnn) if args.distil else BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
-    model = BertForTokenClassification.from_pretrained('./temp/pytorch_model.bin', num_labels=2)
+    #model = BertForTokenClassification.from_pretrained('./temp/pytorch_model.bin', num_labels=2)
     if args.restore_file is not None:
         model = BertForTokenClassification.from_pretrained(args.restore_file, num_labels=2)
     else:
@@ -157,7 +157,15 @@ if __name__ == '__main__':
 
     model.to(params.device)
 
-    optimizer = AdamW(model.parameters(), lr=params.lr, correct_bias=False)  # To reproduce BertAdam specific behavior set correct_bias=False
+    param_optimizer = list(model.named_parameters())
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+         'weight_decay': 0.01},
+        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    ]
+
+    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
     scheduler = WarmupLinearSchedule(optimizer, warmup_steps=params.num_warmup_steps, t_total=params.num_total_steps)  # PyTorch scheduler
 
     train(model, dataloader, optimizer, scheduler, params)
