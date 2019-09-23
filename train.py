@@ -149,7 +149,7 @@ if __name__ == '__main__':
     if args.restore_file is not None:
         model = BertForTokenClassification.from_pretrained(args.restore_file, num_labels=2)
     else:
-        BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
+        model = BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
 
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
