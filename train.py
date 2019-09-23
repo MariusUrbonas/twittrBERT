@@ -132,7 +132,7 @@ if __name__ == '__main__':
     params.batch_size = args.batch_size
     params.epoch_num = args.num_epoch
     params.save_freq = args.save_freq
-    params.save_checkpoints = args.save_ckpoints
+    params.save_checkpoints = args.save_checkpoints
 
     dataloader = DataLoader(path_to_data=args.train_data, seed=params.seed, shuffle=True)
 
