@@ -21,10 +21,10 @@ def train(model, dataset, optimizer, scheduler, params):
         loss_avg = RunningAverage()
         train_data = tqdm(DataLoader(train_set, batch_size=params.batch_size, collate_fn=KeyphraseData.collate_fn),
                                                    total=(len(train_set) // params.batch_size))
+        model.train()
         optimizer.zero_grad()
         model.zero_grad()
         for data, labels, mask in train_data:
-            model.train()
             data = data.to(params.device)
             labels = labels.to(params.device)
             mask = mask.to(params.device)
@@ -68,7 +68,6 @@ def train(model, dataset, optimizer, scheduler, params):
                                     epoch='generic',
                                     score='epic',
                                     checkpoint=params.save_dir)
-        break
 
 
 def validate(model, val_set, params):
@@ -77,20 +76,20 @@ def validate(model, val_set, params):
     metrics = Metrics()
     loss_avg = RunningAverage()
     with torch.no_grad():
-        for data, labels in val_data:
-            model.eval()
-            data = torch.tensor(data, dtype=torch.long).to(params.device)
-            labels = torch.tensor(labels, dtype=torch.long).to(params.device)
+        model.eval()
+        for data, labels, mask in val_data:
 
-            batch_masks = data != 0
+            data = data.to(params.device)
+            labels = labels.to(params.device)
+            mask = mask.to(params.device)
 
-            loss, logits = model(data, attention_mask=batch_masks, labels=labels)
+            loss, logits = model(data, attention_mask=mask, labels=labels)
 
             predicted = logits.max(2)[1]
             metrics.update(batch_pred=predicted.cpu().numpy(), batch_true=labels.cpu().numpy(), batch_mask=batch_masks.cpu().numpy())
             loss_avg.update(torch.mean(loss).item())
             val_data.set_postfix(type='VAL',loss='{:05.3f}'.format(loss_avg()))
-            break
+
     metrics.loss = loss_avg()
     return metrics
 
