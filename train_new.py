@@ -49,7 +49,7 @@ def train(model, dataset, optimizer, scheduler, params):
         print('After {} epochs: F1={}, Loss={}'.format(epoch , metrics.f1(), metrics.loss))
         stats.update(metrics, epoch, loss_avg())
         stats.save()
-        if epoch % params.save_freq == 0 and params.save_checkpoints:
+        if epoch % params.save_freq == 0 and params.save_freq > 0:
             save_checkpoint({'epoch': epoch,
                                     'state_dict': model.state_dict(),
                                     'optim_dict': optimizer.state_dict()},
