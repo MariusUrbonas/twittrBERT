@@ -148,7 +148,8 @@ if __name__ == '__main__':
     KeyphraseData.set_tokenizer(tokenizer)
 
     if args.load_checkpoint is not None:
-        model = model = BertForTokenClassification.from_pretrained(args.restore_file, num_labels=2)
+        checkpoint = torch.load(args.load_checkpoint )
+        model = BertForTokenClassification.from_pretrained('bert-base-uncased', state_dict=checkpoint , num_labels=2)
     else:
         model = BertForTokenClassification.from_pretrained('bert-base-uncased', num_labels=2)
 
