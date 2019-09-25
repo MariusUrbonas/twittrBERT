@@ -2,6 +2,72 @@ import os
 import torch
 import pickle
 import numpy as np
+import re
+
+class TweetProcesser:
+    @staticmethod
+    def replace_url(text):
+        url_pattern = '(?:http|ftp|https)://(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:/~+#-]\
+                    *[\w@?^=%&/~+#-])?(/([A-Z]|[a-z]|[0-9])*)?'
+        return re.sub(url_pattern, 'URL', text)
+
+    @staticmethod
+    def replace_nl(text):
+        return " ".join(text.split("\n"))
+
+    @staticmethod
+    def split_to_sentences(text):
+        sentence_pattern = re.compile("(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s")
+        return sentence_pattern.split(text)
+
+    @staticmethod
+    def long_enough(sentence, min_length):
+        return len(sentence.split()) >= min_length
+
+    @classmethod
+    def merge_short_sentences(cls, sentences, min_length):
+        # if one of the sentences in the list is too short for current theshold
+        # merge it with shortest surrounding sentence
+        merged_sentences = []
+        i = 0
+        last_merged = False
+        while i < len(sentences)-1:
+            last_merged = False
+            if not cls.long_enough(sentences[i], min_length):
+                sent = sentences[i] + " " + sentences[i+1]
+                merged_sentences.append(sent)
+                i += 1
+                last_merged = True
+            else:
+                merged_sentences.append(sentences[i])
+            i += 1
+        if not last_merged:
+            if cls.long_enough(sentences[i], min_length):
+                merged_sentences.append(sentences[-1])
+            else:
+                merged_sentences = merged_sentences[:-1] +\
+                                   [merged_sentences[-1]+' '+ sentences[-1]]
+        return merged_sentences
+
+    @classmethod
+    def preprocess_tweet(cls, tweet_json, min_length, min_num, split):
+        text = Tweet_parser.get_full_text(tweet_json)
+        if text is None:
+            return None
+        text = cls.replace_url(text)
+        text = cls.replace_nl(text)
+        if split:
+            sentences = cls.split_to_sentences(text)
+        if len(sentences) == min_num:
+            return sentences
+        if len(sentences) < min_num:
+            return None
+        sentences = cls.merge_short_sentences(sentences, min_length)
+        if len(sentences) < min_num:
+            return None
+        return sentences
+
+
 
 def save_checkpoint(state, epoch, score, checkpoint, is_best, tag='experiment'):
     
@@ -17,15 +83,6 @@ def save_checkpoint(state, epoch, score, checkpoint, is_best, tag='experiment'):
         os.mkdir(checkpoint)
 
     torch.save(state, filepath)
-
-
-def load_checkpoint(filepath):
-    #filepath = os.path.join(checkpoint_folder, checkpoint_name)
-
-    print("<<< Loading checkpoint from ", filepath)
-
-    checkpoint = torch.load(filepath)
-    return checkpoint
 
 
 class Stats:
