@@ -1,4 +1,3 @@
-# twittrBERT
 # <p align=center>`TwittrBERT`</p>
 `TwittrBERT` is a `BERT` model trained on twitter data text. 
 This repository currenlty provides a framework for training and tuning your own `TwittrBERT` for keyfrase extraction tasks, a traned model will be added in the future.
@@ -19,18 +18,15 @@ To run experiments you need to first setup the Python 3.6 environment:
 * Pregenerate finetuning data (for the unsupervised learning):
 ```
 python pregenerate_training_data.py --train_corpus [PAHT_TO_FILE: str] --output_dir lm_training/ --num_workers [NUM_WORKERS: int] --max_seq_len [YOUR_SEQ_LEN: int] --max_predictions_per_seq [MAX_PRED: int] --bert_model [BERT_MODEL]
-...
 ```
 * To finetune the LM use:
 ```
 python finetune_on_pregenerated.py --pregenerated_data ../lm_training/ --output_dir ./temp/ --bert_model [BERT_MODEL]
-...
 ```
 
 * Then finally to training:
 ```
 python train.py
-...
 ```
 
 For relevant flags please check the code.
