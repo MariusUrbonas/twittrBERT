@@ -1,6 +1,6 @@
 # <p align=center>`TwittrBERT`</p>
 `TwittrBERT` is a `BERT` model trained on twitter data text. 
-This repository currenlty provides a framework for training and tuning your own `TwittrBERT` for keyfrase extraction tasks, a traned model will be added in the future.
+This repository currenlty provides a framework for training and tuning your own `TwittrBERT` for keyfrase extraction tasks, a trained model will be added in the future.
 
 * It results in matching state-of-the-art performance on keyphrase extraction from twitter data. The details of the evaluation will be added, but more experiments are required. Evaluation code is included in this repo. 
 
